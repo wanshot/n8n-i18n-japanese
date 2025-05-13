@@ -48,14 +48,12 @@ jobs:
       working-directory: /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese
 
     - name: Exit if tags exist
-      if: steps.check_tag.outputs.exists == 'true' && github.event_name != 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'true'
       run: |
-        echo "Tags exist and not a manual dispatch, stopping workflow."
+        echo "Tags exist, stopping workflow."
 
-    - name: Debug latest release tag
-      run: echo "Attempting to checkout ref: ${{ steps.latest_release.outputs.latest }}"
     - name: Checkout n8n
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       uses: actions/checkout@v4
       with:
         repository: n8n-io/n8n
@@ -63,25 +61,25 @@ jobs:
         path: ./n8n
 
     - uses: actions/setup-node@v4.2.0
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       with:
         node-version: 20.x
 
     - name: Setup corepack and pnpm
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       run: |
         npm i -g corepack@0.31
         corepack enable
 
     - run: pnpm install --frozen-lockfile
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       working-directory: /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n
 
     - name: check n8n editor-ui is old
       id: editorui_dir
       run: |
-        DIR_PATH="/home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n/packages/frontend/editor-ui"       # 你要检查的目录
-        FALLBACK_DIR="/home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n/packages/editor-ui" # 备用目录
+        DIR_PATH="/home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n/packages/frontend/editor-ui"       # 確認するディレクトリ
+        FALLBACK_DIR="/home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n/packages/editor-ui" # フォールバックディレクトリ
 
         if [ -d "$DIR_PATH" ]; then
           echo "flag=new" >> $GITHUB_OUTPUT
@@ -92,37 +90,37 @@ jobs:
         fi
 
     - name: Move editor-ui i18n language
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       run:     cp -r /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese/languages/* "${{ steps.editorui_dir.outputs.dir }}/src/plugins/i18n/locales/"
 
     - name: Patch New editor-ui
-      if: (steps.editorui_dir.outputs.flag == 'new' && steps.check_tag.outputs.exists == 'false') || github.event_name == 'workflow_dispatch'
+      if: steps.editorui_dir.outputs.flag == 'new' && steps.check_tag.outputs.exists == 'false'
       run: git apply /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese/fix_editor-ui.patch
       working-directory: /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n
 
     - name: Patch Old editor-ui
-      if: (steps.editorui_dir.outputs.flag == 'old' && steps.check_tag.outputs.exists == 'false') || github.event_name == 'workflow_dispatch'
+      if: steps.editorui_dir.outputs.flag == 'old' && steps.check_tag.outputs.exists == 'false'
       run: git apply /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese/fix_editor-ui.old.patch
       working-directory: /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n
 
     - name: Pnpm build editor-ui
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       run: pnpm build
       working-directory: ${{ steps.editorui_dir.outputs.dir }}
 
     - name: dist成果物のパッケージ化
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       run: |
         tar -czvf editor-ui.tar.gz dist
       working-directory: ${{ steps.editorui_dir.outputs.dir }}
 
     - name: dist をプロジェクトディレクトリにコピー
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       run: |
         cp -r ${{ steps.editorui_dir.outputs.dir }}/dist /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese/editor-ui-dist
 
     - name: Update docker-compose.yml version
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       run: |
         RAW_TAG="${{ steps.latest_release.outputs.latest }}"
         VERSION="${RAW_TAG#n8n@}"  # プレフィックス n8n@ を削除
@@ -130,7 +128,7 @@ jobs:
         sed -i "s/{version}/$VERSION/g" /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese/docker-compose.yml
 
     - name: Gitタグの作成
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       run: |
         TAG="${{ steps.latest_release.outputs.latest }}"
         git config --global user.name "github-actions"
@@ -138,16 +136,12 @@ jobs:
         git add editor-ui-dist
         git add docker-compose.yml
         git commit -m "chore: add built editor-ui dist for ${{ steps.latest_release.outputs.latest }}"
-        # 同じタグが存在する場合にエラーになるのを防ぐため、--force オプションは使わず、
-        # 既にタグが存在する場合はこのステップが失敗するようにします。
-        # リリース作成は後続のステップで行われるため、タグ作成の失敗は許容します。
-        # もし、常に新しいタグで上書きしたい場合は `git tag -f $TAG` としてください。
-        git tag $TAG || echo "Tag $TAG already exists or an error occurred. Proceeding with release creation."
-        git push origin $TAG || echo "Failed to push tag $TAG. It might already exist on remote. Proceeding with release creation."
+        git tag $TAG
+        git push origin $TAG
       working-directory: /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese
 
     - name: GitHub Release の作成
-      if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+      if: steps.check_tag.outputs.exists == 'false'
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
@@ -155,13 +149,8 @@ jobs:
         name: Release editor-ui (ja) to ${{ steps.latest_release.outputs.latest }}
         body: |
           自動公開される日本語の言語パックバージョンです。 (Automated release of Japanese language pack.)
-          ${{ github.event_name == 'workflow_dispatch' && '(Manually triggered release)' || '' }}
         draft: false
         prerelease: false
-        # リリース作成時に同じ名前のアセットが既に存在する場合に上書きするオプション
-        # (softprops/action-gh-release v2 では overwrite: true がデフォルトのようです)
-        # overwrite: true
         files: ${{ steps.editorui_dir.outputs.dir }}/editor-ui.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
