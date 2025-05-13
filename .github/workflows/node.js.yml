@@ -52,6 +52,9 @@ jobs:
       run: |
         echo "Tags exist and not a manual dispatch, stopping workflow."
 
+    - name: Debug latest release tag
+      run: echo "Attempting to checkout ref: ${{ steps.latest_release.outputs.latest }}"
+
     - name: Checkout n8n
       if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
       uses: actions/checkout@v4
