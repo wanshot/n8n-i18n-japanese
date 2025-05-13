@@ -1,7 +1,7 @@
 # This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
 
-name: package editor-ui languages
+name: editor-ui 言語ファイルのパッケージ化
 
 on:
   schedule:
@@ -108,13 +108,13 @@ jobs:
       run: pnpm build
       working-directory: ${{ steps.editorui_dir.outputs.dir }}
 
-    - name: 打包 dist 产物
+    - name: dist成果物のパッケージ化
       if: steps.check_tag.outputs.exists == 'false'
       run: |
         tar -czvf editor-ui.tar.gz dist
       working-directory: ${{ steps.editorui_dir.outputs.dir }}
 
-    - name: 拷贝 dist 到项目目录
+    - name: dist をプロジェクトディレクトリにコピー
       if: steps.check_tag.outputs.exists == 'false'
       run: |
         cp -r ${{ steps.editorui_dir.outputs.dir }}/dist /home/runner/work/n8n-i18n-chinese/n8n-i18n-chinese/n8n-i18n-chinese/editor-ui-dist
@@ -123,11 +123,11 @@ jobs:
       if: steps.check_tag.outputs.exists == 'false'
       run: |
         RAW_TAG="${{ steps.latest_release.outputs.latest }}"
-        VERSION="${RAW_TAG#n8n@}"  # 去掉前缀 n8n@
+        VERSION="${RAW_TAG#n8n@}"  # プレフィックス n8n@ を削除
         echo "Replacing {version} with $VERSION in docker-compose.yml"
         sed -i "s/{version}/$VERSION/g" /home/runner/work/n8n-i18n-chinese/n8n-i18n-chinese/n8n-i18n-chinese/docker-compose.yml
 
-    - name: 创建 git tag
+    - name: Gitタグの作成
       if: steps.check_tag.outputs.exists == 'false'
       run: |
         TAG="${{ steps.latest_release.outputs.latest }}"
@@ -140,15 +140,15 @@ jobs:
         git push origin $TAG
       working-directory: /home/runner/work/n8n-i18n-chinese/n8n-i18n-chinese/n8n-i18n-chinese
 
-    - name: 创建 GitHub Release
+    - name: GitHub Release の作成
       if: steps.check_tag.outputs.exists == 'false'
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.latest_release.outputs.latest }}
-        name: Release editor-ui to ${{ steps.latest_release.outputs.latest }}
+        name: Release editor-ui (ja) to ${{ steps.latest_release.outputs.latest }}
         body: |
-          自动发布的中文语言包版本。
+          自動公開される日本語の言語パックバージョンです。 (Automated release of Japanese language pack.)
         draft: false
         prerelease: false
         files: ${{ steps.editorui_dir.outputs.dir }}/editor-ui.tar.gz
