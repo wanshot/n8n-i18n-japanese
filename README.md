@@ -61,11 +61,26 @@
         ```
         N8N_DEFAULT_LOCALE=ja
         ```
-    *   翻訳スクリプトは Gemini API を利用します。`.env` ファイルに Gemini API キーを設定してください。
-        ```
-        GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-        # オプションでモデルも指定可能 (デフォルト: gemini-pro)
-        # GEMINI_MODEL="gemini-1.5-flash"
+    *   翻訳スクリプトは Gemini API を利用します。プロジェクトルートに `.env` ファイルを作成 (または `.env.example` をコピーして編集) し、以下の環境変数を設定してください。
+        ```dotenv
+        # Gemini API Key (必須)
+        GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+
+        # Gemini Model (任意、デフォルト: gemini-pro)
+        # 例: GEMINI_MODEL="gemini-1.5-flash-latest"
+        GEMINI_MODEL="gemini-pro"
+
+        # 翻訳プロンプト (任意、未設定の場合はスクリプト内のデフォルトプロンプトを使用)
+        # LLMに翻訳方法を指示するプロンプトです。
+        # カスタマイズする場合は、スクリプトが期待するプレースホルダー (${language}, ${uniqueSeparator}, ${textsToTranslate}) を含める必要があります。
+        # 詳細は .env.example ファイルおよび script/translate.js 内のデフォルトプロンプトを参照してください。
+        # TRANSLATION_PROMPT="ここにカスタムプロンプトを記述..."
+        #
+        # 翻訳対象言語 (任意、未設定の場合は日本語のみを対象とします)
+        # JSON形式の文字列で、オブジェクトの配列として指定します。
+        # 各オブジェクトは "name" (言語コード) と "label" (言語名) を持つ必要があります。
+        # 例: TARGET_LANGUAGES='[{"name":"ja","label":"日本語"},{"name":"en","label":"English"}]'
+        # TARGET_LANGUAGES='[{"name":"ja","label":"日本語"}]'
         ```
 2.  **依存関係のインストール**:
     ```shell

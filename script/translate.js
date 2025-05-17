@@ -12,12 +12,32 @@ if (!GEMINI_API_KEY){
     process.exit(1);
 }
 
-const targetLanguages = [
+let targetLanguages;
+const defaultTargetLanguages = [
     {
         "name": "ja", // Or "ja-JP" if you prefer
         "label": "日本語",
     }
-]
+];
+
+if (process.env.TARGET_LANGUAGES) {
+    try {
+        const parsedLanguages = JSON.parse(process.env.TARGET_LANGUAGES);
+        if (Array.isArray(parsedLanguages) && parsedLanguages.every(lang => lang && typeof lang.name === 'string' && typeof lang.label === 'string')) {
+            targetLanguages = parsedLanguages;
+            console.log("環境変数 TARGET_LANGUAGES から翻訳対象言語を読み込みました:", targetLanguages.map(l => l.label).join(', '));
+        } else {
+            console.warn("環境変数 TARGET_LANGUAGES の形式が正しくありません。デフォルトの翻訳対象言語（日本語）を使用します。");
+            targetLanguages = defaultTargetLanguages;
+        }
+    } catch (e) {
+        console.error("環境変数 TARGET_LANGUAGES のJSONパースに失敗しました。デフォルトの翻訳対象言語（日本語）を使用します。", e);
+        targetLanguages = defaultTargetLanguages;
+    }
+} else {
+    targetLanguages = defaultTargetLanguages;
+    console.log("環境変数 TARGET_LANGUAGES が未設定です。デフォルトの翻訳対象言語（日本語）を使用します。");
+}
 
 // 翻訳結果を分割するための区切り文字（API呼び出しごとにユニークにする）
 function generateUniqueSeparator() {
@@ -33,7 +53,7 @@ async function doTranslate(messagesToTranslate, language) { // messagesToTransla
     // 各メッセージに番号を付け、区切り文字で結合
     const textsToTranslate = messagesToTranslate.map((msg, index) => `ITEM_START [${index + 1}] ${msg} ITEM_END`).join(`\n${uniqueSeparator}\n`);
 
-    const prompt = `あなたは高度な翻訳APIです。以下の複数の英語のテキストを、それぞれ忠実に ${language} に翻訳してください。
+    const defaultPromptTemplate = `あなたは高度な翻訳APIです。以下の複数の英語のテキストを、それぞれ忠実に ${language} に翻訳してください。
 各英語テキストは「ITEM_START [番号]」で始まり「ITEM_END」で終わります。そして、各英語テキスト間は「${uniqueSeparator}」という特殊な文字列で区切られています。
 
 あなたのタスクは、各英語テキストを ${language} に翻訳し、翻訳結果のみを返すことです。
@@ -45,6 +65,18 @@ async function doTranslate(messagesToTranslate, language) { // messagesToTransla
 ${textsToTranslate}
 
 ${language}への翻訳結果群 (各翻訳を「${uniqueSeparator}」で区切ってください):`;
+
+    const userPromptTemplate = process.env.TRANSLATION_PROMPT;
+    let prompt;
+
+    if (userPromptTemplate) {
+        prompt = userPromptTemplate
+            .replace(/\$\{language\}/g, language)
+            .replace(/\$\{uniqueSeparator\}/g, uniqueSeparator)
+            .replace(/\$\{textsToTranslate\}/g, textsToTranslate);
+    } else {
+        prompt = defaultPromptTemplate;
+    }
 
     const response = await fetch(GEMINI_API_ENDPOINT, {
         method: "POST",
