@@ -103,7 +103,7 @@ ${language}への翻訳結果群 (各翻訳を「${uniqueSeparator}」で区切�
 
     if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
         let combinedTranslations = data.candidates[0].content.parts[0].text.trim();
-        
+
         let translatedTexts = combinedTranslations.split(uniqueSeparator).map(t => t.trim());
 
         // 後処理用のパターン定義
@@ -123,7 +123,7 @@ ${language}への翻訳結果群 (各翻訳を「${uniqueSeparator}」で区切�
             /\s*ITEM_END\s*$/i,        // ITEM_END が残っていたら削除
             /^\[\d+\]\s*/,             // [番号] のみが残っていたら削除
         ];
-        
+
         const cleanText = (text) => {
             let cleanedText = text;
             for (const pattern of patternsToRemove) {
@@ -141,7 +141,7 @@ ${language}への翻訳結果群 (各翻訳を「${uniqueSeparator}」で区切�
                  console.error(`エラー: 翻訳結果の分割数が原文アイテム数に対して著しく多い(${translatedTexts.length} vs ${messagesToTranslate.length})。APIが区切り文字を正しく解釈しなかった可能性が高いです。このチャンクの翻訳は信頼性が低いため、空として扱います。`);
                  return new Array(messagesToTranslate.length).fill(''); // 全て空文字で返す
             }
-            
+
             // それ以外の場合（多少のズレ）、原文の数に合わせる
             const adjustedTranslations = new Array(messagesToTranslate.length).fill('');
             for(let i=0; i < messagesToTranslate.length; i++) {
@@ -151,7 +151,7 @@ ${language}への翻訳結果群 (各翻訳を「${uniqueSeparator}」で区切�
             }
             return adjustedTranslations;
         }
-        
+
         // アイテム数が一致した場合も、各要素に対してクリーニング処理
         return translatedTexts.map(text => cleanText(text));
 
@@ -234,19 +234,25 @@ async function translate(waitTranslateList, targetObject, targetLanguageLabel) {
 }
 
 // 翻訳が必要なキーとメッセージを収集する
-function collectMessages(oldSourceLanguages, newSourceLanguages, targetLanguages, parentKey = '', waitTranslateList=[]){
+function collectMessages(oldSourceLanguages, newSourceLanguages, targetLanguages, targetObject, parentKey = '', waitTranslateList=[]){
     for (const key in newSourceLanguages) {
         let currentKey = parentKey ? parentKey + "##" + key : key;
         if (newSourceLanguages[key] instanceof Object) {
-            collectMessages(oldSourceLanguages[key]  || {}, newSourceLanguages[key], targetLanguages[key] || {}, currentKey, waitTranslateList);
+            collectMessages(oldSourceLanguages[key]  || {}, newSourceLanguages[key], targetLanguages[key] || {}, targetObject, currentKey, waitTranslateList);
         } else {
             if (targetLanguages[key] === undefined
                 || oldSourceLanguages[key] === undefined
                 || oldSourceLanguages[key] !== newSourceLanguages[key]) {
-                waitTranslateList.push({
-                    key: currentKey,
-                    message: newSourceLanguages[key]
-                })
+                // 空文字列の場合も翻訳対象として扱うが、特別な処理をする
+                if (newSourceLanguages[key] === "") {
+                    // 空文字列の場合は、targetLanguagesにも空文字列を設定
+                    putObjectValue(targetObject, currentKey, "");
+                } else {
+                    waitTranslateList.push({
+                        key: currentKey,
+                        message: newSourceLanguages[key]
+                    })
+                }
             }
         }
     }
@@ -265,8 +271,8 @@ async function run(){
     } else {
         console.warn(`${localEnFilePath} が見つかりません。空のオブジェクトとして扱います。`);
     }
-    
-    const newEnLanguages = await fetch("https://ghfast.top/https://raw.githubusercontent.com/n8n-io/n8n/master/packages/frontend/editor-ui/src/plugins/i18n/locales/en.json") // 最新の英語言語ファイルを取得
+
+    const newEnLanguages = await fetch("https://raw.githubusercontent.com/n8n-io/n8n/refs/heads/master/packages/frontend/@n8n/i18n/src/locales/en.json") // 最新の英語言語ファイルを取得
         .then(res => res.json())
         .catch(err => {
             console.error("最新の英語言語ファイルの取得に失敗しました:", err);
@@ -277,8 +283,8 @@ async function run(){
     for (const targetLanguage of targetLanguages) {
         let targetJson = {}; // ターゲット言語のJSONオブジェクト
         // 翻訳ファイルのパスを __dirname (scriptディレクトリ) からの相対パスで解決
-        let fileName = path.join(__dirname, '..', 'languages', `${targetLanguage.name}.json`); 
-        
+        let fileName = path.join(__dirname, '..', 'languages', `${targetLanguage.name}.json`);
+
         if (fs.existsSync(fileName)){
             try {
                 targetJson = JSON.parse(fs.readFileSync(fileName, "utf8")); // 既存の翻訳ファイルを読み込み
@@ -288,8 +294,8 @@ async function run(){
             }
         }
         const waitTranslateList = [] // 翻訳待ちリスト
-        collectMessages(oldEnLanguages, newEnLanguages , targetJson, "", waitTranslateList); // 翻訳が必要なアイテムを収集
-        
+        collectMessages(oldEnLanguages, newEnLanguages , targetJson, targetJson, "", waitTranslateList); // 翻訳が必要なアイテムを収集
+
         if (waitTranslateList.length === 0) {
             console.log(`${targetLanguage.label} の翻訳対象アイテムはありませんでした。既存の翻訳ファイルを保持します。`);
             // 既存のファイルをそのまま保存し直すか、何もしないか。ここでは何もしない。
@@ -307,7 +313,7 @@ async function run(){
         }
 
         await translate(waitTranslateList, targetJson, targetLanguage.label); // 翻訳処理を実行
-        
+
         // newEnLanguages のキー順序に基づいて targetJson をソートする
         const sortedTargetLanguages = {};
         for (const key in newEnLanguages) { // 最新の英語ファイルのキー順でソート
@@ -322,6 +328,7 @@ async function run(){
         fs.writeFileSync(fileName, JSON.stringify(sortedTargetLanguages, null, 4));
         console.log(`${fileName} にソート済みの翻訳を書き込みました。`);
     }
+
     // ローカルの英語言語ファイルを最新版に更新
     fs.writeFileSync(localEnFilePath, JSON.stringify(newEnLanguages, null, 4));
     console.log(`${localEnFilePath} を最新版に更新しました。`);
