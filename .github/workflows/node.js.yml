@@ -103,6 +103,11 @@ jobs:
       run: git apply /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n-i18n-japanese/fix_editor-ui.old.patch
       working-directory: /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n
 
+   - name: Build @n8n/stores package
+      if: steps.check_tag.outputs.exists == 'false'
+      run: pnpm build
+      working-directory: /home/runner/work/n8n-i18n-japanese/n8n-i18n-japanese/n8n/packages/frontend/@n8n/stores
+
     - name: Pnpm build editor-ui
       if: steps.check_tag.outputs.exists == 'false'
       run: pnpm build
